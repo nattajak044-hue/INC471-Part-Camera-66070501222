@@ -12,6 +12,7 @@
 - `vision_pkg/calibrated_transformer.py` — Node แปลงพิกัดกล้องเป็นพิกัดหุ่นยนต์โดยใช้ไฟล์ calibration (`.npz`)
 - `vision_pkg/dobot_node.py` — Node สำหรับเชื่อมต่อ/ควบคุม Dobot
 - `vision_pkg/object_detector_node.py` — Node ตรวจจับวัตถุ
+- `vision_pkg/detectors/` — โมดูลย่อยสำหรับตรวจจับ/คัดแยกวัตถุ (`base.py`, `cascade_qc.py`, `data_collect.py`, `depth_shape.py`, `hybrid_fusion.py`, `sam_anomaly.py`, `yolo_seg.py`)
 - `vision_pkg/vision_unit_test_logger.py` — สคริปต์บันทึกผลทดสอบลง `vision_unit_test_results.csv`
 - `setup.py` / `package.xml` — ไฟล์ตั้งค่าแพ็กเกจและ `entry_points` สำหรับ `ros2 run`
 
