@@ -27,6 +27,8 @@ setup(
             'aruco_detector = vision_pkg.aruco_detector:main',
             'tf_transformer = vision_pkg.tf_transformer:main',
             'calibrated_transformer = vision_pkg.calibrated_transformer:main',
+            'object_detector_node = vision_pkg.object_detector_node:main',
+            'dobot_node = vision_pkg.dobot_node:main',
         ],
     },
 )

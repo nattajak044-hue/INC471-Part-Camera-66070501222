@@ -257,6 +257,7 @@ class CalibratedTransformerNode(Node):
         poses_d2.header.frame_id = 'dobot2_base'
 
         status = data.get('status', 'NO_OBJECT')
+        detector_mode = data.get('detector_mode', 'depth_shape')
         raw_objects = data.get('all_objects', [])
 
         d1_objects = []
@@ -266,6 +267,11 @@ class CalibratedTransformerNode(Node):
         for obj in raw_objects:
             cam_xyz = obj.get('cam_xyz_m', [0.0, 0.0, 0.0])
             cls_name = obj.get('class_name', 'UNKNOWN')
+            decision = obj.get('decision', 'UNCLASSIFIED')
+            decision_reason = obj.get('decision_reason', '')
+            anomaly_score = obj.get('anomaly_score', None)
+            is_overlapped = bool(obj.get('is_overlapped', False))
+            grasp_priority = obj.get('grasp_priority', obj.get('id'))
             raw_roll = float(obj.get('roll_deg', 0.0))
             target_roll = 0.0 if cls_name == 'ROUND_CYLINDER' else raw_roll
             qx, qy, qz, qw = yaw_deg_to_quaternion(target_roll)
@@ -281,6 +287,11 @@ class CalibratedTransformerNode(Node):
             d1_objects.append({
                 'id': obj.get('id'),
                 'class_name': cls_name,
+                'decision': decision,
+                'decision_reason': decision_reason,
+                'anomaly_score': anomaly_score,
+                'is_overlapped': is_overlapped,
+                'grasp_priority': grasp_priority,
                 'confidence': obj.get('confidence'),
                 'height_mm': obj.get('height_mm'),
                 'dobot1_xyz_mm': xyz1,
@@ -304,6 +315,11 @@ class CalibratedTransformerNode(Node):
                 d2_objects.append({
                     'id': obj.get('id'),
                     'class_name': cls_name,
+                    'decision': decision,
+                    'decision_reason': decision_reason,
+                    'anomaly_score': anomaly_score,
+                    'is_overlapped': is_overlapped,
+                    'grasp_priority': grasp_priority,
                     'confidence': obj.get('confidence'),
                     'height_mm': obj.get('height_mm'),
                     'dobot2_xyz_mm': xyz2,
@@ -325,6 +341,11 @@ class CalibratedTransformerNode(Node):
             multi_objects.append({
                 'id': obj.get('id'),
                 'class_name': cls_name,
+                'decision': decision,
+                'decision_reason': decision_reason,
+                'anomaly_score': anomaly_score,
+                'is_overlapped': is_overlapped,
+                'grasp_priority': grasp_priority,
                 'confidence': obj.get('confidence'),
                 'height_mm': obj.get('height_mm'),
                 'roll_deg': round(target_roll, 2),
@@ -340,6 +361,7 @@ class CalibratedTransformerNode(Node):
         self.pub_dobot1_poses.publish(poses_d1)
         self.pub_dobot1_objects.publish(String(data=json.dumps({
             'status': status,
+            'detector_mode': detector_mode,
             'object_count': len(d1_objects),
             'snapshot_locked': data.get('snapshot_locked', False),
             'latency_ms': data.get('latency_ms', 0.0),
@@ -350,6 +372,7 @@ class CalibratedTransformerNode(Node):
             self.pub_dobot2_poses.publish(poses_d2)
             self.pub_dobot2_objects.publish(String(data=json.dumps({
                 'status': status,
+                'detector_mode': detector_mode,
                 'object_count': len(d2_objects),
                 'snapshot_locked': data.get('snapshot_locked', False),
                 'latency_ms': data.get('latency_ms', 0.0),
@@ -358,7 +381,11 @@ class CalibratedTransformerNode(Node):
 
         self.pub_multi_targets.publish(String(data=json.dumps({
             'status': status,
+            'detector_mode': detector_mode,
             'object_count': len(multi_objects),
+            'good_count': data.get('good_count', 0),
+            'waste_count': data.get('waste_count', 0),
+            'hitl_count': data.get('hitl_count', 0),
             'snapshot_locked': data.get('snapshot_locked', False),
             'latency_ms': data.get('latency_ms', 0.0),
             'objects': multi_objects,
@@ -368,15 +395,19 @@ class CalibratedTransformerNode(Node):
         now_sec = self.get_clock().now().nanoseconds / 1e9
         if multi_objects and (now_sec - self.last_log_time >= 1.0):
             self.last_log_time = now_sec
-            lines = [f"[Dual-Robot Targets: {len(multi_objects)} ชิ้น | Locked={data.get('snapshot_locked', False)}]"]
+            lines = [
+                f"[Dual-Robot Targets: {len(multi_objects)} ชิ้น | Mode={detector_mode} | "
+                f"Locked={data.get('snapshot_locked', False)}]"
+            ]
             for item in multi_objects:
                 x1, y1, z1 = item['dobot1_xyz_mm']
                 d2_str = (
                     f"D2({item['dobot2_xyz_mm'][0]:5.1f},{item['dobot2_xyz_mm'][1]:5.1f},{item['dobot2_xyz_mm'][2]:4.1f})"
                     if item['dobot2_xyz_mm'] else "D2(N/A)"
                 )
+                dec_tag = f"[{item['decision']}]" if item['decision'] != 'UNCLASSIFIED' else ""
                 lines.append(
-                    f"  #{item['id']} {item['class_name']:<14} | "
+                    f"  #{item['id']} {item['class_name']:<14} {dec_tag} | "
                     f"D1({x1:5.1f},{y1:5.1f},{z1:4.1f}) | {d2_str} -> [{item['nearest_robot']}]"
                 )
             self.get_logger().info("\n" + "\n".join(lines))
